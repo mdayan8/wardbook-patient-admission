@@ -4,6 +4,7 @@ import {
   ShieldCheck, Server, Database, CodeXml,
 } from 'lucide-react'
 import { api } from './api'
+import ThemeToggle from './ThemeToggle'
 
 const REPO = 'https://github.com/mdayan8/wardbook-patient-admission'
 
@@ -64,6 +65,7 @@ export default function Landing() {
           <a href="#checks">Validation</a>
           <a href="#stack">Stack</a>
         </div>
+        <span className="l-toggle"><ThemeToggle /></span>
         <a href="/app" className="btn primary l-cta-sm">Open app <ArrowRight size={16} /></a>
       </nav>
 

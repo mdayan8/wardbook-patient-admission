@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { api } from './api'
 import PatientForm from './PatientForm'
+import ThemeToggle from './ThemeToggle'
 
 const NO_FILTERS = { search: '', ward: '', department: '', doctor: '', status: '' }
 
@@ -143,9 +144,12 @@ export default function App() {
           <h1><a href="/" className="home-link" aria-label="Wardbook home">Wardbook<span className="dot">.</span></a></h1>
           <span className="brand-sub">Patient admissions</span>
         </div>
-        <button className="btn primary desktop-only" onClick={() => setEditing({})} disabled={!options} title="Shortcut: N">
-          <Plus size={18} /> Add patient <kbd className="kbd on-primary">N</kbd>
-        </button>
+        <div className="topbar-actions">
+          <ThemeToggle />
+          <button className="btn primary desktop-only" onClick={() => setEditing({})} disabled={!options} title="Shortcut: N">
+            <Plus size={18} /> Add patient <kbd className="kbd on-primary">N</kbd>
+          </button>
+        </div>
       </header>
 
       <main className="content">

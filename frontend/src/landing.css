@@ -32,7 +32,8 @@
 .l-links a::after { content: ''; position: absolute; left: 0; right: 0; bottom: -4px; height: 1.5px; background: var(--blue); transform: scaleX(0); transform-origin: left; transition: transform 0.3s var(--ease); }
 .l-links a:hover { color: var(--ink); }
 .l-links a:hover::after { transform: scaleX(1); }
-.l-cta-sm { margin-left: auto; min-height: 40px; padding: 0 16px; }
+.l-toggle { margin-left: auto; }
+.l-cta-sm { min-height: 40px; padding: 0 16px; }
 .landing .btn:hover:not(:disabled) svg { transform: translateX(3px); }
 
 /* Hero */
@@ -143,7 +144,7 @@
 }
 @media (min-width: 900px) {
   .l-links { display: flex; }
-  .l-cta-sm { margin-left: 28px; }
+  .l-toggle { margin-left: 20px; }
   .l-hero { padding-top: 84px; }
   .l-float { display: inline-flex; }
   .l-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }

@@ -140,7 +140,7 @@ export default function App() {
       <div className={`progress ${fetching && !loading ? 'on' : ''}`} aria-hidden />
       <header className="topbar">
         <div className="brand">
-          <h1>Wardbook<span className="dot">.</span></h1>
+          <h1><a href="/" className="home-link" aria-label="Wardbook home">Wardbook<span className="dot">.</span></a></h1>
           <span className="brand-sub">Patient admissions</span>
         </div>
         <button className="btn primary desktop-only" onClick={() => setEditing({})} disabled={!options} title="Shortcut: N">

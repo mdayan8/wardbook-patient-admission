@@ -14,7 +14,7 @@ from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, field_validator, model_validator
 from sqlalchemy import (Column, Date, Integer, MetaData, String, Table, create_engine,
@@ -275,4 +275,14 @@ def health():
 
 dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 if dist.is_dir():
-    app.mount("/", StaticFiles(directory=dist, html=True), name="frontend")
+    app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
+
+    @app.get("/{path:path}", include_in_schema=False)
+    def spa(path: str):
+        """Serve built files; any other non-API path (e.g. /app) gets index.html so the React page loads."""
+        if path.startswith("api/"):
+            raise HTTPException(404, detail="Not found")
+        file = (dist / path).resolve()
+        if path and file.is_file() and file.is_relative_to(dist):
+            return FileResponse(file)
+        return FileResponse(dist / "index.html")

@@ -58,10 +58,12 @@ export default function PatientForm({ patient, options, onSave, onClose }) {
     }
   }
 
-  const field = (name, label, input, hint) => (
+  // `extra` always shows (e.g. date shortcuts); `hint` gives way to the error message
+  const field = (name, label, input, hint, extra) => (
     <label className={`field ${show(name) ? 'has-error' : ''}`}>
       <span className="field-label">{label} <b aria-hidden>*</b></span>
       {input}
+      {extra}
       {show(name)
         ? <span className="field-error" id={`${name}-err`} role="alert">{errors[name]}</span>
         : hint && <span className="field-hint">{hint}</span>}
@@ -115,6 +117,7 @@ export default function PatientForm({ patient, options, onSave, onClose }) {
             {field('ward', 'Ward', select('ward', options.wards, 'Select ward'))}
             {field('admission_date', 'Admission date',
               <input {...common('admission_date')} type="date" max={maxDate(options)} />,
+              null,
               <span className="quick">
                 {[['Today', 0], ['Yesterday', 1]].map(([label, back]) => {
                   const d = new Date(`${maxDate(options)}T00:00:00`); d.setDate(d.getDate() - back)

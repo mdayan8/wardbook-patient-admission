@@ -233,6 +233,13 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .actions { display: flex; gap: 8px; }
 .actions .btn { flex: 1; }
 .actions .btn:first-child { flex: 1.5; }
+.actions .btn { min-width: 0; }
+/* Cards size themselves: in a narrow card, Edit/Delete become icon buttons so nothing spills out */
+.card { container: card / inline-size; }
+@container card (max-width: 300px) {
+  .actions .lbl { display: none; }
+  .actions .btn:not(:first-child) { flex: 0 0 44px; padding: 0; }
+}
 
 /* ---------- Cards (mobile / tablet) ---------- */
 .list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }

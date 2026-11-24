@@ -2,7 +2,9 @@
 
 A web app for hospital staff to admit, track and discharge patients.
 
-**Live app:** _LIVE_LINK_ (frontend and backend run on one URL)
+**Live app:** https://wardbook-patient-admission.vercel.app (frontend and backend on one URL)
+
+**Repo:** https://github.com/mdayan8/wardbook-patient-admission
 
 | Desktop | Dark mode |
 |---|---|
@@ -18,8 +20,8 @@ A web app for hospital staff to admit, track and discharge patients.
 |---|---|
 | Frontend | React 19 + Vite, plain CSS (no UI kit), lucide icons |
 | Backend | Python 3.12, FastAPI, Pydantic (validation), SQLAlchemy |
-| Database | PostgreSQL in production (data survives restarts), SQLite for local dev |
-| Hosting | Vercel (React static + Python serverless function) with Neon Postgres. A Dockerfile and `render.yaml` also work for Render/Railway/Fly. |
+| Database | PostgreSQL (Supabase) in production, so data survives restarts and redeploys; SQLite for local dev |
+| Hosting | Vercel: React static files + Python serverless function, one URL. A Dockerfile and `render.yaml` also work for Render/Railway/Fly. |
 
 ## Features
 
@@ -80,10 +82,10 @@ cd backend && pip install pytest httpx && pytest -q
 
 ## Deploy
 
-**Vercel + Neon (what the live link uses)**
-1. Import this repo in Vercel. `vercel.json` builds `frontend/` and serves `api/index.py` as the Python function.
-2. Add a Postgres database (Storage → Neon). It sets `DATABASE_URL` / `POSTGRES_URL` for you.
-3. Deploy. The table and 6 demo patients are created on first start.
+**Vercel + Postgres (what the live link uses)**
+1. Import this repo in Vercel (framework preset: Other). `vercel.json` builds `frontend/` and serves `api/index.py` as the Python function.
+2. Add a Postgres database from Storage (Supabase or Neon). It sets `POSTGRES_URL` for you; any `DATABASE_URL` works too.
+3. Deploy. The table and 6 demo patients are created on first start. Pushes to `main` redeploy automatically.
 
 **Render (or any Docker host)**: New → Blueprint → pick this repo. `render.yaml` creates the web service and a Postgres database and wires `DATABASE_URL`.
 

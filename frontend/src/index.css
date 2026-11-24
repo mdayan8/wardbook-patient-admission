@@ -363,6 +363,12 @@ dialog::backdrop { background: rgba(20, 19, 16, 0.42); backdrop-filter: blur(6px
   .filters, .filters.open { display: flex; width: auto; flex: 2 1 560px; flex-wrap: nowrap; animation: none; }
   .filter { flex: 1 1 0; min-width: 0; }
   .search { flex: 1 1 260px; }
+  .list.cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* ---------- Wide screens ≥ 1180px: table view (cards below, so nothing is ever squeezed) ---------- */
+@media (min-width: 1180px) {
+  .results { overflow-x: auto; } /* safety net for very long names */
   .list.cards { display: none; }
 
   .table {

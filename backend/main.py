@@ -9,6 +9,7 @@ import os
 import re
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
@@ -50,12 +51,17 @@ if not db_url:
     if os.getenv("VERCEL"):  # serverless disk is wiped between requests, SQLite would lose data
         raise RuntimeError("Set DATABASE_URL to a Postgres database (e.g. Neon) in the Vercel project settings")
     db_url = f"sqlite:///{Path(__file__).resolve().parent / 'patients.db'}"
-if db_url.startswith("postgres://"):  # Render/Heroku style URL
-    db_url = db_url.replace("postgres://", "postgresql+psycopg://", 1)
-elif db_url.startswith("postgresql://"):
-    db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+connect_args = {}
+if db_url.startswith(("postgres://", "postgresql://")):
+    # Normalise for psycopg 3, and drop vendor-only query params (e.g. Supabase's "supa=")
+    # that libpq rejects; sslmode is the only one we need.
+    parts = urlsplit(db_url)
+    keep = [(k, v) for k, v in parse_qsl(parts.query) if k == "sslmode"]
+    db_url = urlunsplit(("postgresql+psycopg", parts.netloc, parts.path, urlencode(keep), ""))
+    # Hosted poolers (PgBouncer transaction mode) break server-side prepared statements
+    connect_args = {"prepare_threshold": None}
 
-engine = create_engine(db_url, pool_pre_ping=True)
+engine = create_engine(db_url, pool_pre_ping=True, connect_args=connect_args)
 metadata = MetaData()
 patients = Table(
     "patients", metadata,

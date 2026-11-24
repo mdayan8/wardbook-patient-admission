@@ -8,9 +8,9 @@ A web app for hospital staff to admit, track and discharge patients.
 |---|---|
 | ![Desktop](docs/desktop.png) | ![Dark](docs/desktop-dark.png) |
 
-| Phone | Validation | Tablet |
-|---|---|---|
-| ![Phone](docs/mobile.jpg) | ![Form](docs/form-validation.jpg) | ![Tablet](docs/tablet.png) |
+| Phone | Phone filters | Validation | Tablet |
+|---|---|---|---|
+| ![Phone](docs/mobile.jpg) | ![Filters](docs/mobile-filters.jpg) | ![Form](docs/form-validation.jpg) | ![Tablet](docs/tablet.png) |
 
 ## Tech stack
 
@@ -29,6 +29,11 @@ A web app for hospital staff to admit, track and discharge patients.
 - Search by name (debounced)
 - Mark as discharged in one click, with Undo; re-admit later
 - Tap the Total / Admitted / Discharged counters to filter by status
+- Active filters show as removable chips; search matches are highlighted
+- Keyboard shortcuts on desktop: `/` search, `N` new patient, `Esc` clear search
+- Loading: skeleton rows shaped like the real list, a thin progress bar on refresh, spinners on save/delete
+- Form: gender segmented control, Today/Yesterday date shortcuts, doctor list follows the department,
+  errors appear inline as you type and the first invalid field gets focus on submit
 - Light and dark mode follow the system setting; respects reduced-motion
 
 ## Validation (frontend **and** backend)

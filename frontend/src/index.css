@@ -230,12 +230,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .meta dt { display: flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
 .meta dd { margin: 3px 0 0; font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
 
-.skeleton { height: 220px; position: relative; overflow: hidden; animation: none; }
-.skeleton::after {
-  content: ''; position: absolute; inset: 0;
-  background: linear-gradient(90deg, transparent, var(--sunk), transparent);
-  animation: shimmer 1.3s infinite;
-}
+
 
 .table { display: none; }
 
@@ -369,7 +364,6 @@ dialog::backdrop { background: rgba(20, 19, 16, 0.42); backdrop-filter: blur(6px
   .filter { flex: 1 1 0; min-width: 0; }
   .search { flex: 1 1 260px; }
   .list.cards { display: none; }
-  .skeleton { height: 70px; }
 
   .table {
     display: table; width: 100%; border-collapse: separate; border-spacing: 0;
@@ -395,6 +389,85 @@ dialog::backdrop { background: rgba(20, 19, 16, 0.42); backdrop-filter: blur(6px
   .actions.compact .btn:not(:first-child) { width: 38px; padding: 0; }
 }
 
+/* ---------- Smart bits ---------- */
+/* Top progress bar while results refresh */
+.progress { position: fixed; top: 0; left: 0; right: 0; height: 2px; z-index: 40; pointer-events: none; overflow: hidden; opacity: 0; transition: opacity 0.3s; }
+.progress.on { opacity: 1; }
+.progress::after { content: ''; position: absolute; inset: 0; width: 40%; background: var(--blue); border-radius: 2px; animation: indeterminate 1s var(--ease) infinite; }
+.results { transition: opacity 0.2s; }
+.results.dim { opacity: 0.55; }
+
+.kbd {
+  display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 6px;
+  font: 600 11.5px/1 var(--display); color: var(--ink-3); border: 1px solid var(--line-2); background: var(--paper);
+}
+.search .kbd { margin-right: 8px; }
+.kbd.on-primary { margin-left: 2px; color: #fff; border-color: rgba(255, 255, 255, 0.35); background: rgba(255, 255, 255, 0.12); }
+@media (max-width: 899px), (hover: none) { .kbd { display: none; } }
+
+.result-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.result-line > span { margin-right: 4px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 8px 0 11px; border-radius: 999px;
+  border: 1px solid var(--line-2); background: var(--surface); font-size: 12.5px; font-weight: 600; color: var(--ink);
+  animation: pop 0.3s var(--ease);
+}
+.chip span { font-weight: 500; color: var(--ink-3); }
+.chip svg { color: var(--ink-3); transition: color 0.15s, transform 0.2s; }
+.chip:hover { border-color: var(--ink); }
+.chip:hover svg { color: var(--red); transform: rotate(90deg); }
+
+mark { background: color-mix(in srgb, var(--blue) 18%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
+
+/* Skeleton shaped like real rows */
+.sk-list { display: grid; gap: 10px; }
+.sk-row {
+  display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 18px;
+  background: var(--surface); border: 1px solid var(--line); animation: fade 0.4s calc(var(--i) * 60ms) both;
+}
+.sk { display: block; height: 11px; border-radius: 6px; position: relative; overflow: hidden; background: var(--sunk); }
+.sk::after {
+  content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--surface) 70%, transparent), transparent);
+  animation: shimmer 1.4s infinite;
+}
+.sk-avatar { width: 40px; height: 40px; border-radius: 50%; flex: none; }
+.sk-lines { flex: 1; display: grid; gap: 8px; min-width: 0; }
+.sk-lines .sk:first-child { height: 13px; }
+.sk-mid { display: none; width: 110px; }
+.sk-pill { width: 76px; height: 24px; border-radius: 99px; flex: none; }
+@media (min-width: 900px) { .sk-mid { display: block; } .sk-list { gap: 0; border: 1px solid var(--line); border-radius: 20px; overflow: hidden; background: var(--surface); } .sk-row { border: 0; border-radius: 0; border-bottom: 1px solid var(--line); } }
+
+/* Toast countdown */
+.toast { overflow: hidden; }
+.toast::after {
+  content: ''; position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: var(--blue);
+  transform-origin: left; animation: countdown var(--ms, 3500ms) linear forwards;
+}
+
+/* Segmented control (gender) */
+fieldset.field { border: 0; margin: 0; padding: 0; min-width: 0; }
+fieldset.field legend { padding: 0; margin-bottom: 7px; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; padding: 4px; height: 50px; border-radius: 14px; background: var(--sunk); border: 1px solid var(--line-2); }
+.seg label {
+  position: relative; display: grid; place-items: center; border-radius: 10px; cursor: pointer;
+  font-size: 14.5px; font-weight: 600; color: var(--ink-2); transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.seg label:hover { color: var(--ink); }
+.seg label.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(28, 27, 24, 0.12), 0 0 0 1px var(--line); }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label:has(input:focus-visible) { outline: 2px solid var(--blue); outline-offset: 1px; }
+.field.has-error .seg { border-color: var(--red); background: var(--red-soft); }
+
+/* Quick date picks */
+.field-hint .quick { display: flex; gap: 6px; }
+.quick button {
+  height: 28px; padding: 0 11px; border-radius: 999px; border: 1px solid var(--line-2); background: none;
+  font-size: 12.5px; font-weight: 600; color: var(--ink-2); transition: all 0.15s;
+}
+.quick button:hover { border-color: var(--ink); color: var(--ink); }
+.quick button.on { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
+
 /* ---------- Motion ---------- */
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
 @keyframes fade { from { opacity: 0; } }
@@ -404,6 +477,8 @@ dialog::backdrop { background: rgba(20, 19, 16, 0.42); backdrop-filter: blur(6px
 @keyframes toast { from { opacity: 0; transform: translate(-50%, 24px) scale(0.95); } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+@keyframes indeterminate { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+@keyframes countdown { to { transform: scaleX(0); } }
 @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; }

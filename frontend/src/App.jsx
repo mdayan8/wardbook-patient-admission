@@ -22,18 +22,21 @@ export default function App() {
   const [allCounts, setAllCounts] = useState({ total: 0, admitted: 0, discharged: 0 })
   const [filters, setFilters] = useState(NO_FILTERS)
   const [query, setQuery] = useState('') // debounced copy of filters.search
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true) // first load only: shows skeletons
+  const [fetching, setFetching] = useState(false) // any refetch: shows the top progress bar
   const [loadError, setLoadError] = useState('')
   const [editing, setEditing] = useState(null) // null | {} (new) | patient
   const [deleting, setDeleting] = useState(null)
   const [toast, setToast] = useState(null)
   const [showFilters, setShowFilters] = useState(false)
   const toastTimer = useRef()
+  const searchRef = useRef(null)
 
   const notify = useCallback((msg, action) => {
     clearTimeout(toastTimer.current)
-    setToast({ msg, action, id: Date.now() })
-    toastTimer.current = setTimeout(() => setToast(null), action ? 6000 : 3500)
+    const ms = action ? 6000 : 3500
+    setToast({ msg, action, id: Date.now(), ms })
+    toastTimer.current = setTimeout(() => setToast(null), ms)
   }, [])
 
   useEffect(() => {
@@ -46,6 +49,7 @@ export default function App() {
   }, [filters.search])
 
   const load = useCallback(async () => {
+    setFetching(true)
     try {
       const params = Object.fromEntries(Object.entries({ ...filters, search: query }).filter(([, v]) => v))
       const [rows, all] = await Promise.all([api.list(params), api.list({})])
@@ -60,10 +64,23 @@ export default function App() {
       setLoadError(e.message)
     } finally {
       setLoading(false)
+      setFetching(false)
     }
   }, [filters.ward, filters.department, filters.doctor, filters.status, query]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load() }, [load])
+
+  // Keyboard shortcuts: "/" jumps to search, "N" opens the add form
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || document.querySelector('dialog[open]')) return
+      if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName)) return
+      if (e.key === '/') { e.preventDefault(); searchRef.current?.focus() }
+      else if (e.key.toLowerCase() === 'n' && options) { e.preventDefault(); setEditing({}) }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [options])
 
   const setFilter = (key, value) =>
     setFilters((f) => {
@@ -74,6 +91,7 @@ export default function App() {
     })
   const activeFilterCount = ['ward', 'department', 'doctor'].filter((k) => filters[k]).length
   const anyFilter = activeFilterCount > 0 || filters.search || filters.status
+  const chips = [['status', 'Status'], ['ward', 'Ward'], ['department', 'Dept'], ['doctor', 'Doctor']].filter(([k]) => filters[k])
 
   const doctorOptions = useMemo(() => {
     if (!options) return []
@@ -119,13 +137,14 @@ export default function App() {
 
   return (
     <div className="app">
+      <div className={`progress ${fetching && !loading ? 'on' : ''}`} aria-hidden />
       <header className="topbar">
         <div className="brand">
           <h1>Wardbook<span className="dot">.</span></h1>
           <span className="brand-sub">Patient admissions</span>
         </div>
-        <button className="btn primary desktop-only" onClick={() => setEditing({})} disabled={!options}>
-          <Plus size={18} /> Add patient
+        <button className="btn primary desktop-only" onClick={() => setEditing({})} disabled={!options} title="Shortcut: N">
+          <Plus size={18} /> Add patient <kbd className="kbd on-primary">N</kbd>
         </button>
       </header>
 
@@ -148,11 +167,12 @@ export default function App() {
         <section className="toolbar">
           <div className="search">
             <Search size={18} aria-hidden />
-            <input type="search" placeholder="Search by name…" value={filters.search}
-              onChange={(e) => setFilter('search', e.target.value)} aria-label="Search patients by name" />
-            {filters.search && (
-              <button className="icon-btn small" onClick={() => setFilter('search', '')} aria-label="Clear search"><X size={16} /></button>
-            )}
+            <input ref={searchRef} type="search" placeholder="Search by name…" value={filters.search}
+              onChange={(e) => setFilter('search', e.target.value)} aria-label="Search patients by name"
+              onKeyDown={(e) => e.key === 'Escape' && (setFilter('search', ''), e.currentTarget.blur())} />
+            {filters.search
+              ? <button className="icon-btn small" onClick={() => setFilter('search', '')} aria-label="Clear search"><X size={16} /></button>
+              : <kbd className="kbd desktop-only" aria-hidden>/</kbd>}
           </div>
           <button className={`btn outline filter-toggle ${showFilters ? 'on' : ''}`} onClick={() => setShowFilters((s) => !s)}
             aria-expanded={showFilters}>
@@ -168,8 +188,13 @@ export default function App() {
 
         <div className="result-line" aria-live="polite">
           {!loading && !loadError && (
-            <>Showing <b>{patients.length}</b> of {allCounts.total} patient{allCounts.total === 1 ? '' : 's'}</>
+            <span>Showing <b>{patients.length}</b> of {allCounts.total} patient{allCounts.total === 1 ? '' : 's'}</span>
           )}
+          {chips.map(([k, label]) => (
+            <button key={k} className="chip" onClick={() => setFilter(k, '')} aria-label={`Remove ${label} filter`}>
+              <span>{label}:</span> {filters[k]} <X size={13} />
+            </button>
+          ))}
         </div>
 
         {loadError ? (
@@ -180,7 +205,16 @@ export default function App() {
             <button className="btn primary" onClick={() => { setLoading(true); load(); api.options().then(setOptions).catch(() => {}) }}>Try again</button>
           </div>
         ) : loading ? (
-          <div className="list">{[0, 1, 2, 3].map((i) => <div key={i} className="card skeleton" />)}</div>
+          <div className="sk-list" aria-busy="true" aria-label="Loading patients">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="sk-row" style={{ '--i': i }}>
+                <span className="sk sk-avatar" />
+                <span className="sk-lines"><span className="sk" style={{ width: '42%' }} /><span className="sk" style={{ width: '26%' }} /></span>
+                <span className="sk sk-mid" /><span className="sk sk-mid" />
+                <span className="sk sk-pill" />
+              </div>
+            ))}
+          </div>
         ) : patients.length === 0 ? (
           <div className="empty">
             <Users size={36} />
@@ -191,7 +225,7 @@ export default function App() {
               : <button className="btn primary" onClick={() => setEditing({})}><Plus size={18} /> Add patient</button>}
           </div>
         ) : (
-          <>
+          <div className={`results ${fetching ? 'dim' : ''}`}>
             <table className="table">
               <thead>
                 <tr>
@@ -202,7 +236,7 @@ export default function App() {
               <tbody>
                 {patients.map((p, i) => (
                   <tr key={p.id} style={{ '--i': i }}>
-                    <td><PatientCell p={p} /></td>
+                    <td><PatientCell p={p} q={query} /></td>
                     <td>{p.ward}</td>
                     <td><div className="two-line"><span>{p.department}</span><small>{p.doctor}</small></div></td>
                     <td><div className="two-line"><span>{fmtDate(p.admission_date)}</span><small>{stayLabel(p)}</small></div></td>
@@ -217,7 +251,7 @@ export default function App() {
               {patients.map((p, i) => (
                 <li key={p.id} className="card" style={{ '--i': i }}>
                   <div className="card-top">
-                    <PatientCell p={p} />
+                    <PatientCell p={p} q={query} />
                     <StatusBadge p={p} />
                   </div>
                   <dl className="meta">
@@ -230,7 +264,7 @@ export default function App() {
                 </li>
               ))}
             </ul>
-          </>
+          </div>
         )}
       </main>
 
@@ -244,7 +278,7 @@ export default function App() {
       {deleting && <ConfirmDelete patient={deleting} onConfirm={confirmDelete} onClose={() => setDeleting(null)} />}
 
       {toast && (
-        <div className="toast" role="status" key={toast.id}>
+        <div className="toast" role="status" key={toast.id} style={{ '--ms': `${toast.ms}ms` }}>
           <span>{toast.msg}</span>
           {toast.action && (
             <button onClick={() => { toast.action.run(); setToast(null) }}><RotateCcw size={15} /> {toast.action.label}</button>
@@ -261,12 +295,20 @@ function stayLabel(p) {
   return p.status === 'Discharged' ? `stayed ${d === 0 ? '< 1 day' : span}` : d === 0 ? 'admitted today' : span
 }
 
-function PatientCell({ p }) {
+// Wraps the searched text in <mark> so staff see why a row matched
+function Highlight({ text, q }) {
+  const i = q.trim() ? text.toLowerCase().indexOf(q.trim().toLowerCase()) : -1
+  if (i < 0) return text
+  const n = q.trim().length
+  return <>{text.slice(0, i)}<mark>{text.slice(i, i + n)}</mark>{text.slice(i + n)}</>
+}
+
+function PatientCell({ p, q = '' }) {
   return (
     <div className="patient">
       <span className={`avatar g-${p.gender.toLowerCase()}`} aria-hidden>{initials(p.name)}</span>
       <div className="two-line">
-        <span className="pname">{p.name}</span>
+        <span className="pname"><Highlight text={p.name} q={q} /></span>
         <small>{p.age} yrs · {p.gender} · #{p.id}</small>
       </div>
     </div>

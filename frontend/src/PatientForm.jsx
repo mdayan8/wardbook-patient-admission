@@ -35,7 +35,8 @@ export default function PatientForm({ patient, options, onSave, onClose }) {
     setServerErrors(({ [field]: _f, form: _x, ...rest }) => rest)
     setSubmitError('')
   }
-  const blur = (f) => setTouched((t) => ({ ...t, [f]: true }))
+  // Skipping past an empty field isn't an error yet; "required" shows after a submit attempt
+  const blur = (f) => form[f] !== '' && setTouched((t) => ({ ...t, [f]: true }))
 
   async function submit(e) {
     e.preventDefault()
@@ -98,10 +99,30 @@ export default function PatientForm({ patient, options, onSave, onClose }) {
             </div>
             {field('age', 'Age',
               <input {...common('age')} type="number" inputMode="numeric" min={0} max={120} step={1} placeholder="0 – 120" />)}
-            {field('gender', 'Gender', select('gender', options.genders, 'Select gender'))}
+            <fieldset className={`field seg-field ${show('gender') ? 'has-error' : ''}`}>
+              <legend className="field-label">Gender <b aria-hidden>*</b></legend>
+              <div className="seg" role="radiogroup" aria-invalid={Boolean(show('gender'))}>
+                {options.genders.map((g) => (
+                  <label key={g} className={form.gender === g ? 'on' : ''}>
+                    <input type="radio" name="gender" value={g} checked={form.gender === g}
+                      onChange={() => { set('gender', g); blur('gender') }} />
+                    {g}
+                  </label>
+                ))}
+              </div>
+              {show('gender') && <span className="field-error" role="alert">{errors.gender}</span>}
+            </fieldset>
             {field('ward', 'Ward', select('ward', options.wards, 'Select ward'))}
             {field('admission_date', 'Admission date',
-              <input {...common('admission_date')} type="date" max={maxDate(options)} />)}
+              <input {...common('admission_date')} type="date" max={maxDate(options)} />,
+              <span className="quick">
+                {[['Today', 0], ['Yesterday', 1]].map(([label, back]) => {
+                  const d = new Date(`${maxDate(options)}T00:00:00`); d.setDate(d.getDate() - back)
+                  const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+                  return <button key={label} type="button" className={form.admission_date === iso ? 'on' : ''}
+                    onClick={() => set('admission_date', iso)}>{label}</button>
+                })}
+              </span>)}
             {field('department', 'Department', select('department', options.departments, 'Select department'))}
             {field('doctor', 'Doctor',
               select('doctor', doctors, form.department ? 'Select doctor' : 'Pick a department first', { disabled: !form.department }),

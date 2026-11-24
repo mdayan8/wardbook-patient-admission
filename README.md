@@ -2,17 +2,43 @@
 
 A web app for hospital staff to admit, track and discharge patients.
 
-**Live app:** https://wardbook-patient-admission.vercel.app (frontend and backend on one URL)
+- **Live app:** https://wardbook-patient-admission.vercel.app/app (the ward board)
+- **Landing page:** https://wardbook-patient-admission.vercel.app
+- **Repo:** https://github.com/mdayan8/wardbook-patient-admission
 
-**Repo:** https://github.com/mdayan8/wardbook-patient-admission
+Frontend and backend run on one URL; no login is needed.
 
-| Desktop | Dark mode |
+| Landing page | Ward board (desktop) | Dark mode |
+|---|---|---|
+| ![Landing](docs/landing.png) | ![Desktop](docs/desktop.png) | ![Dark](docs/desktop-dark.png) |
+
+| Phone | Phone filters | Validation | Tablet | Small laptop |
+|---|---|---|---|---|
+| ![Phone](docs/mobile.jpg) | ![Filters](docs/mobile-filters.jpg) | ![Form](docs/form-validation.jpg) | ![Tablet](docs/tablet.png) | ![Laptop](docs/laptop.png) |
+
+## Requirements checklist
+
+Every item below was tested on the live site (backend: 37 automated checks; frontend: driven through the real UI).
+
+| Requirement | Where / how |
 |---|---|
-| ![Desktop](docs/desktop.png) | ![Dark](docs/desktop-dark.png) |
-
-| Phone | Phone filters | Validation | Tablet |
-|---|---|---|---|
-| ![Phone](docs/mobile.jpg) | ![Filters](docs/mobile-filters.jpg) | ![Form](docs/form-validation.jpg) | ![Tablet](docs/tablet.png) |
+| Patient fields: name, age, gender, ward, department, doctor, admission date, status | `backend/main.py` table + form in `PatientForm.jsx` |
+| 1. Add a patient | "Add patient" button (or `N`), new patients start as Admitted |
+| 2. View all patients | `/app`: table ≥ 1180px, cards below |
+| 3. Filter by ward, department, doctor | Three dropdowns (combine freely); `GET /api/patients?ward=&department=&doctor=` |
+| 4. Search by name | Search box, case-insensitive, matches highlighted |
+| 5. Edit a patient | Pencil button opens the form prefilled; same validation |
+| 6. Delete with confirmation | Trash button → "Delete …? This can't be undone" dialog |
+| 7. Mark as discharged | One click, records the discharge date, Undo in the toast |
+| 8. Works on mobile, tablet, desktop | Checked at 360, 390, 768, 1024, 1180 and 1440px with no sideways scrolling |
+| Validation in frontend **and** backend | `frontend/src/validation.js` and `PatientIn` in `backend/main.py` (same rules) |
+| Backend rejects bad data with a clear message | `422 {"message": ..., "errors": {field: message}}` |
+| React frontend | React 19 (Vite) |
+| Backend not Node.js | Python (FastAPI) |
+| Data survives restart | Postgres; a record was confirmed present after two redeploys |
+| Public repo, live link, README with screenshots | This page |
+| No passwords or keys in GitHub | Database URL lives only in Vercel environment settings; history scanned |
+| No login required | Open the link and use it |
 
 ## Tech stack
 
@@ -36,7 +62,9 @@ A web app for hospital staff to admit, track and discharge patients.
 - Loading: skeleton rows shaped like the real list, a thin progress bar on refresh, spinners on save/delete
 - Form: gender segmented control, Today/Yesterday date shortcuts, doctor list follows the department,
   errors appear inline as you type and the first invalid field gets focus on submit
-- Light and dark mode follow the system setting; respects reduced-motion
+- Light/dark toggle (sun/moon button) with a circular wipe; remembers your choice, defaults to the system setting
+- Landing page at `/` with a live preview of the ward list; the ward board is at `/app`
+- Respects reduced-motion settings
 
 ## Validation (frontend **and** backend)
 
@@ -107,7 +135,9 @@ No passwords or keys are in this repo; the database URL comes only from environm
 ```
 backend/main.py        FastAPI app: models, validation, routes
 backend/test_api.py    API tests
-frontend/src/App.jsx   list, filters, search, stats, delete dialog
+frontend/src/Landing.jsx  landing page at /
+frontend/src/App.jsx   ward board at /app: list, filters, search, stats, delete dialog
+frontend/src/ThemeToggle.jsx  light/dark switch
 frontend/src/PatientForm.jsx   add/edit form
 frontend/src/validation.js     client-side rules (mirror of the backend)
 api/index.py           Vercel entry that imports backend/main.py

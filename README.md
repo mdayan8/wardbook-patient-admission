@@ -54,7 +54,12 @@ Every item below was tested on the live site (backend: 37 automated checks; fron
 - Add, edit and delete patients (delete asks for confirmation)
 - List all patients: a table on desktop, cards on phone and tablet
 - Filter by ward, department and doctor (the doctor list follows the chosen department)
-- Search by name (debounced)
+- Search by name: results update on every keystroke
+- Filters and search run in the browser on the loaded list, so picking or clearing a filter updates instantly;
+  saves, discharges and deletes update the list from the server's reply without a refetch
+- Custom dropdowns (`Picker.jsx`): type-to-search for long lists, ↑/↓/Enter/Esc keyboard control, a check on the selected item,
+  one-tap × to clear a filter, and a live count beside each option (e.g. "ICU 1") that reflects the other filters
+- Doctors are grouped by department; in the form, picking a doctor first fills in their department
 - Mark as discharged in one click, with Undo; re-admit later
 - Tap the Total / Admitted / Discharged counters to filter by status
 - Active filters show as removable chips; search matches are highlighted

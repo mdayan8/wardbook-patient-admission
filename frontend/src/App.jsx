@@ -6,8 +6,18 @@ import {
 import { api } from './api'
 import PatientForm from './PatientForm'
 import ThemeToggle from './ThemeToggle'
+import Picker from './Picker'
 
 const NO_FILTERS = { search: '', ward: '', department: '', doctor: '', status: '' }
+const FACETS = ['ward', 'department', 'doctor', 'status']
+
+// Same order as the API: newest admission first
+const byNewest = (a, b) => b.admission_date.localeCompare(a.admission_date) || b.id - a.id
+// Does patient p pass the filters? `skip` ignores one filter (used to count options for that filter)
+const matches = (p, f, skip) => {
+  const q = f.search.trim().toLowerCase().replace(/\s+/g, ' ')
+  return (!q || p.name.toLowerCase().includes(q)) && FACETS.every((k) => k === skip || !f[k] || p[k] === f[k])
+}
 
 const fmtDate = (iso) =>
   iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
@@ -19,10 +29,8 @@ const daysSince = (iso, until) => {
 
 export default function App() {
   const [options, setOptions] = useState(null)
-  const [patients, setPatients] = useState([])
-  const [allCounts, setAllCounts] = useState({ total: 0, admitted: 0, discharged: 0 })
+  const [all, setAll] = useState([]) // every patient; filtering happens in the browser, so it's instant
   const [filters, setFilters] = useState(NO_FILTERS)
-  const [query, setQuery] = useState('') // debounced copy of filters.search
   const [loading, setLoading] = useState(true) // first load only: shows skeletons
   const [fetching, setFetching] = useState(false) // any refetch: shows the top progress bar
   const [loadError, setLoadError] = useState('')
@@ -44,22 +52,10 @@ export default function App() {
     api.options().then(setOptions).catch((e) => setLoadError(e.message))
   }, [])
 
-  useEffect(() => {
-    const t = setTimeout(() => setQuery(filters.search), 250)
-    return () => clearTimeout(t)
-  }, [filters.search])
-
   const load = useCallback(async () => {
     setFetching(true)
     try {
-      const params = Object.fromEntries(Object.entries({ ...filters, search: query }).filter(([, v]) => v))
-      const [rows, all] = await Promise.all([api.list(params), api.list({})])
-      setPatients(rows)
-      setAllCounts({
-        total: all.length,
-        admitted: all.filter((p) => p.status === 'Admitted').length,
-        discharged: all.filter((p) => p.status === 'Discharged').length,
-      })
+      setAll((await api.list({})).sort(byNewest))
       setLoadError('')
     } catch (e) {
       setLoadError(e.message)
@@ -67,7 +63,7 @@ export default function App() {
       setLoading(false)
       setFetching(false)
     }
-  }, [filters.ward, filters.department, filters.doctor, filters.status, query]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => { load() }, [load])
 
@@ -94,27 +90,43 @@ export default function App() {
   const anyFilter = activeFilterCount > 0 || filters.search || filters.status
   const chips = [['status', 'Status'], ['ward', 'Ward'], ['department', 'Dept'], ['doctor', 'Doctor']].filter(([k]) => filters[k])
 
-  const doctorOptions = useMemo(() => {
-    if (!options) return []
-    return filters.department ? options.doctorsByDepartment[filters.department] : Object.values(options.doctorsByDepartment).flat()
-  }, [options, filters.department])
+  const patients = useMemo(() => all.filter((p) => matches(p, filters)), [all, filters])
+  const allCounts = useMemo(() => ({
+    total: all.length,
+    admitted: all.filter((p) => p.status === 'Admitted').length,
+    discharged: all.filter((p) => p.status === 'Discharged').length,
+  }), [all])
+
+  // Options for each filter, with how many patients each would show given the *other* filters
+  const facet = useCallback((key, values, group) => {
+    const pool = all.filter((p) => matches(p, filters, key))
+    const n = (v) => pool.filter((p) => p[key] === v).length
+    return { options: values.map((v) => ({ value: v, count: n(v), group: group?.(v) })), total: pool.length }
+  }, [all, filters])
+  const deptOf = useMemo(() => Object.fromEntries(Object.entries(options?.doctorsByDepartment || {}).flatMap(([d, docs]) => docs.map((doc) => [doc, d]))), [options])
+  const wardFacet = facet('ward', options?.wards || [])
+  const deptFacet = facet('department', options?.departments || [])
+  const doctorFacet = facet('doctor',
+    filters.department ? options?.doctorsByDepartment[filters.department] || [] : Object.keys(deptOf),
+    filters.department ? undefined : (doc) => deptOf[doc])
+
+  // Apply a server reply to the local list without refetching
+  const upsert = (row) => setAll((list) => [...list.filter((p) => p.id !== row.id), row].sort(byNewest))
 
   async function save(payload) {
     if (editing?.id) {
-      await api.update(editing.id, payload)
+      upsert(await api.update(editing.id, payload))
       notify(`${payload.name}'s record updated`)
     } else {
-      await api.create(payload)
+      upsert(await api.create(payload))
       notify(`${payload.name} admitted`)
     }
     setEditing(null)
-    load()
   }
 
   async function changeStatus(p, status) {
     try {
-      await api.setStatus(p.id, status)
-      load()
+      upsert(await api.setStatus(p.id, status))
       if (status === 'Discharged') notify(`${p.name} discharged`, { label: 'Undo', run: () => changeStatus(p, 'Admitted') })
       else notify(`${p.name} re-admitted`)
     } catch (e) { notify(e.message) }
@@ -124,9 +136,9 @@ export default function App() {
     const p = deleting
     try {
       await api.remove(p.id)
+      setAll((list) => list.filter((x) => x.id !== p.id))
       setDeleting(null)
       notify(`${p.name}'s record deleted`)
-      load()
     } catch (e) { setDeleting(null); notify(e.message) }
   }
 
@@ -183,9 +195,12 @@ export default function App() {
             <SlidersHorizontal size={18} /> Filters{activeFilterCount > 0 && <span className="pill">{activeFilterCount}</span>}
           </button>
           <div className={`filters ${showFilters ? 'open' : ''}`}>
-            <FilterSelect icon={BedDouble} label="Ward" value={filters.ward} list={options?.wards} onChange={(v) => setFilter('ward', v)} />
-            <FilterSelect icon={Building2} label="Department" value={filters.department} list={options?.departments} onChange={(v) => setFilter('department', v)} />
-            <FilterSelect icon={Stethoscope} label="Doctor" value={filters.doctor} list={doctorOptions} onChange={(v) => setFilter('doctor', v)} />
+            <Picker variant="filter" icon={BedDouble} ariaLabel="Ward" placeholder="All wards" allLabel="All wards" allCount={wardFacet.total}
+              clearable value={filters.ward} options={wardFacet.options} onChange={(v) => setFilter('ward', v)} />
+            <Picker variant="filter" icon={Building2} ariaLabel="Department" placeholder="All departments" allLabel="All departments" allCount={deptFacet.total}
+              clearable value={filters.department} options={deptFacet.options} onChange={(v) => setFilter('department', v)} />
+            <Picker variant="filter" icon={Stethoscope} ariaLabel="Doctor" placeholder="All doctors" allLabel="All doctors" allCount={doctorFacet.total}
+              clearable value={filters.doctor} options={doctorFacet.options} onChange={(v) => setFilter('doctor', v)} emptyText="No doctors match" />
             {anyFilter && <button className="btn ghost clear" onClick={() => setFilters(NO_FILTERS)}><X size={16} /> Clear all</button>}
           </div>
         </section>
@@ -240,7 +255,7 @@ export default function App() {
               <tbody>
                 {patients.map((p, i) => (
                   <tr key={p.id} style={{ '--i': i }}>
-                    <td><PatientCell p={p} q={query} /></td>
+                    <td><PatientCell p={p} q={filters.search} /></td>
                     <td>{p.ward}</td>
                     <td><div className="two-line"><span>{p.department}</span><small>{p.doctor}</small></div></td>
                     <td><div className="two-line"><span>{fmtDate(p.admission_date)}</span><small>{stayLabel(p)}</small></div></td>
@@ -255,7 +270,7 @@ export default function App() {
               {patients.map((p, i) => (
                 <li key={p.id} className="card" style={{ '--i': i }}>
                   <div className="card-top">
-                    <PatientCell p={p} q={query} />
+                    <PatientCell p={p} q={filters.search} />
                     <StatusBadge p={p} />
                   </div>
                   <dl className="meta">
@@ -349,17 +364,6 @@ function Actions({ p, onEdit, onDelete, onStatus, compact }) {
   )
 }
 
-function FilterSelect({ icon: Icon, label, value, list = [], onChange }) {
-  return (
-    <label className={`filter ${value ? 'set' : ''}`}>
-      <Icon size={16} aria-hidden />
-      <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={`Filter by ${label}`}>
-        <option value="">All {label === 'Ward' ? 'wards' : label === 'Doctor' ? 'doctors' : 'departments'}</option>
-        {list.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-    </label>
-  )
-}
 
 function ConfirmDelete({ patient, onConfirm, onClose }) {
   const ref = useRef(null)

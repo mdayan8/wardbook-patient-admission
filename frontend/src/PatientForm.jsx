@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { X, Loader2 } from 'lucide-react'
 import { validatePatient, maxDate } from './validation'
+import Picker from './Picker'
 
 const EMPTY = { name: '', age: '', gender: '', ward: '', department: '', doctor: '', admission_date: '' }
 
@@ -29,6 +30,10 @@ export default function PatientForm({ patient, options, onSave, onClose }) {
       const next = { ...f, [field]: value }
       // Changing department resets a doctor who doesn't work there
       if (field === 'department' && !(options.doctorsByDepartment[value] || []).includes(f.doctor)) next.doctor = ''
+      // Picking a doctor first fills in their department
+      if (field === 'doctor' && value && !f.department) {
+        next.department = Object.keys(options.doctorsByDepartment).find((d) => options.doctorsByDepartment[d].includes(value)) || ''
+      }
       return next
     })
     // drop (not undefined-out) the keys, or the spread below would hide client errors
@@ -73,11 +78,17 @@ export default function PatientForm({ patient, options, onSave, onClose }) {
     name, value: form[name], onChange: (e) => set(name, e.target.value), onBlur: () => blur(name),
     'aria-invalid': Boolean(show(name)), 'aria-describedby': show(name) ? `${name}-err` : undefined,
   })
-  const select = (name, list, placeholder, extra = {}) => (
-    <select {...common(name)} {...extra}>
-      <option value="">{placeholder}</option>
-      {list.map((o) => <option key={o} value={o}>{o}</option>)}
-    </select>
+  // Dropdown fields use a <div> wrapper: a <label> would re-open the menu when an option inside it is clicked
+  const pickField = (name, label, props, hint) => (
+    <div className={`field ${show(name) ? 'has-error' : ''}`}>
+      <span className="field-label" id={`${name}-label`}>{label} <b aria-hidden>*</b></span>
+      <Picker name={name} labelledBy={`${name}-label`} ariaLabel={label} value={form[name]}
+        onChange={(v) => { set(name, v); setTouched((t) => ({ ...t, [name]: true })) }} onClose={() => blur(name)}
+        invalid={Boolean(show(name))} describedBy={show(name) ? `${name}-err` : undefined} {...props} />
+      {show(name)
+        ? <span className="field-error" id={`${name}-err`} role="alert">{errors[name]}</span>
+        : hint && <span className="field-hint">{hint}</span>}
+    </div>
   )
 
   return (
@@ -114,7 +125,7 @@ export default function PatientForm({ patient, options, onSave, onClose }) {
               </div>
               {show('gender') && <span className="field-error" role="alert">{errors.gender}</span>}
             </fieldset>
-            {field('ward', 'Ward', select('ward', options.wards, 'Select ward'))}
+            {pickField('ward', 'Ward', { options: options.wards, placeholder: 'Select ward' })}
             {field('admission_date', 'Admission date',
               <input {...common('admission_date')} type="date" max={maxDate(options)} />,
               null,
@@ -126,10 +137,12 @@ export default function PatientForm({ patient, options, onSave, onClose }) {
                     onClick={() => set('admission_date', iso)}>{label}</button>
                 })}
               </span>)}
-            {field('department', 'Department', select('department', options.departments, 'Select department'))}
-            {field('doctor', 'Doctor',
-              select('doctor', doctors, form.department ? 'Select doctor' : 'Pick a department first', { disabled: !form.department }),
-              form.department ? `Doctors in ${form.department}` : null)}
+            {pickField('department', 'Department', { options: options.departments, placeholder: 'Select department' })}
+            {pickField('doctor', 'Doctor', {
+              // Before a department is chosen, show every doctor grouped by department; picking one fills the department
+              options: form.department ? doctors : Object.entries(options.doctorsByDepartment).flatMap(([d, docs]) => docs.map((doc) => ({ value: doc, group: d }))),
+              placeholder: form.department ? 'Select doctor' : 'Select doctor (any department)',
+            }, form.department ? `Doctors in ${form.department}` : 'Picking a doctor fills in the department')}
           </div>
           {serverErrors.form && <div className="banner error" role="alert">{serverErrors.form}</div>}
         </div>
